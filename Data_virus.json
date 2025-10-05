@@ -1,0 +1,672 @@
+{
+  "name": "Data_virus",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"value\": \"8.8.8.8\"\n}",
+        "options": {}
+      },
+      "id": "f6ca90a4-8878-4927-b0d3-ced50b672741",
+      "name": "Configuration Entrée1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        620,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json.value || \"\";\nlet type = \"unknown\";\n\n// Détection IP\nif (/^(?:\\d{1,3}\\.){3}\\d{1,3}$/.test(input)) {\n  type = \"ip\";\n} \n// Détection URL\nelse if (/^https?:\\/\\//i.test(input)) {\n  type = \"url\";\n} \n// Détection Hash (MD5=32, SHA1=40, SHA256=64)\nelse if (/^[a-f0-9]{32}$/i.test(input)) {\n  type = \"hash\";\n} else if (/^[a-f0-9]{40}$/i.test(input)) {\n  type = \"hash\";\n} else if (/^[a-f0-9]{64}$/i.test(input)) {\n  type = \"hash\";\n} \n// Détection Domain\nelse if (/^[a-z0-9.-]+\\.[a-z]{2,}$/i.test(input)) {\n  type = \"domain\";\n}\n\nreturn [{ \n  json: { \n    value: input, \n    type: type,\n    detected_at: new Date().toISOString()\n  } \n}];"
+      },
+      "id": "ee881b16-b2b9-4eab-a7c6-d5245c84c2d9",
+      "name": "AutoDetect Type1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "ip-condition",
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "ip",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "IP"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "url-condition",
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "url",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "URL"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "domain-condition",
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "domain",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Domain"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "hash-condition",
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "hash",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Hash"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ddae767e-b1e4-4049-ac80-8c63daa05612",
+      "name": "Router par Type1",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1060,
+        599
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://otx.alienvault.com/api/v1/indicators/{{ $json.type === 'ip' ? 'IPv4' : $json.type }}/{{ $json.value }}/general",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-OTX-API-KEY",
+              "value": "02a6016da1b220f30a023d71b520cc8d297feacc0a9be5c5d8b4ee4f59c55b23"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9e09f7bc-f9be-4ac6-a231-eb178c43228c",
+      "name": "Analyse OTX1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.virustotal.com/api/v3/{{ $json.type === 'ip' ? 'ip_addresses' : $json.type === 'hash' ? 'files' : $json.type === 'url' ? 'urls' : 'domains' }}/{{ $json.value }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "virusTotalApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-apikey",
+              "value": "34690ce48a0d768d20cbaf954424dc059eb76a0aed320a00d30418d9726dc135"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2ad3b80a-6b9c-4cdb-b23d-221fb2cf918c",
+      "name": "Analyse VirusTotal1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        720
+      ],
+      "credentials": {
+        "virusTotalApi": {
+          "id": "JazhKVozCRcQqqT8",
+          "name": "VirusTotal account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "a409d319-3347-41ac-af1d-69a8d09390b6",
+      "name": "Fusion Résultats1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1500,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupération des données d'entrée\nconst inputData = $('AutoDetect Type1').first().json;\nconst type = inputData.type;\nconst value = inputData.value;\n\n// Initialisation des données\nlet otx_data = {};\nlet vt_data = {};\n\n// Extraction des résultats OTX et VT\nfor (const item of items) {\n  if (item.json.pulse_info) {\n    otx_data = item.json;\n  } else if (item.json.data && item.json.data.attributes) {\n    vt_data = item.json;\n  }\n}\n\n// Extraction des statistiques\nconst otx_pulses = otx_data.pulse_info?.count || 0;\nconst vt_stats = vt_data.data?.attributes?.last_analysis_stats || {};\nconst vt_malicious = vt_stats.malicious || 0;\nconst vt_suspicious = vt_stats.suspicious || 0;\nconst vt_harmless = vt_stats.harmless || 0;\nconst vt_undetected = vt_stats.undetected || 0;\nconst reputation = vt_data.data?.attributes?.reputation || 0;\n\n// Calcul du score de risque (0-100)\nlet risk_score = 0;\nrisk_score += otx_pulses * 25; // Chaque pulse OTX = +25\nrisk_score += vt_malicious * 15; // Chaque détection malveillante = +15\nrisk_score += vt_suspicious * 8; // Chaque détection suspecte = +8\nrisk_score -= Math.min(reputation * 2, 30); // Bonne réputation = -2 par point (max -30)\n\n// Bonus pour hash très détecté\nif (type === 'hash' && vt_malicious > 5) {\n  risk_score += 20;\n}\n\n// Normalisation du score entre 0-100\nrisk_score = Math.max(0, Math.min(100, risk_score));\n\n// Classification du risque\nlet risk_level = 'SAFE';\nlet risk_color = '🟢';\nlet severity = 'LOW';\nlet action_required = false;\n\nif (risk_score >= 80) {\n  risk_level = 'CRITICAL';\n  risk_color = '🔴';\n  severity = 'CRITICAL';\n  action_required = true;\n} else if (risk_score >= 50) {\n  risk_level = 'MALICIOUS';\n  risk_color = '🔴';\n  severity = 'HIGH';\n  action_required = true;\n} else if (risk_score >= 25) {\n  risk_level = 'SUSPICIOUS';\n  risk_color = '🟠';\n  severity = 'MEDIUM';\n  action_required = true;\n} else if (risk_score >= 10) {\n  risk_level = 'LOW RISK';\n  risk_color = '🟡';\n  severity = 'LOW';\n  action_required = false;\n}\n\nconst timestamp = new Date().toISOString();\n\nreturn [{\n  json: {\n    // Identification\n    type: type.toUpperCase(),\n    value: value,\n    timestamp: timestamp,\n    \n    // Scoring\n    risk_score: risk_score,\n    risk_level: risk_level,\n    severity: severity,\n    risk_color: risk_color,\n    action_required: action_required,\n    \n    // Détails techniques\n    details: {\n      otx_pulses: otx_pulses,\n      vt_malicious: vt_malicious,\n      vt_suspicious: vt_suspicious,\n      vt_harmless: vt_harmless,\n      vt_undetected: vt_undetected,\n      reputation: reputation\n    },\n    \n    // Données brutes pour l'AI\n    raw_otx: otx_data,\n    raw_vt: vt_data\n  }\n}];\n"
+      },
+      "id": "373798a7-e80d-4648-81bb-73cd39c5f9d2",
+      "name": "Calcul Risque1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1720,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "CHATGPT-4O-LATEST"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Tu es un expert SOC. Analyse cette menace détectée :\n\n**Type**: {{ $json.type }}\n**Valeur**: {{ $json.value }}\n**Score de risque**: {{ $json.risk_score }}/100\n**Niveau**: {{ $json.risk_level }}\n\n**Détails**:\n- OTX Pulses: {{ $json.details.otx_pulses }}\n- VirusTotal Malicious: {{ $json.details.vt_malicious }}\n- VirusTotal Suspicious: {{ $json.details.vt_suspicious }}\n- Réputation: {{ $json.details.reputation }}\n\nFournis une réponse JSON avec:\n{\n  \"analysis\": \"analyse courte en 2-3 phrases\",\n  \"recommendations\": \"recommandations en 3-4 points avec tirets\"\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "7f84c997-52cb-4c34-87a9-a99c237fd76c",
+      "name": "Enrichissement AI1",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [
+        1940,
+        620
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "tyudvkyWN44ZghVu",
+          "name": "OpenAi account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse la réponse de l'AI\nconst aiResponse = items[0].json.choices?.[0]?.message?.content || '{}';\nlet parsed = {};\n\ntry {\n  parsed = JSON.parse(aiResponse);\n} catch (e) {\n  parsed = {\n    analysis: aiResponse.substring(0, 200),\n    recommendations: \"Erreur de parsing - voir analyse brute\"\n  };\n}\n\n// Récupère les données de risque\nconst riskData = $('Calcul Risque1').first().json;\n\n// Fonction pour tronquer TOUTES les valeurs à 5000 caractères\nfunction truncateTo5000(value) {\n  if (value === null || value === undefined) return value;\n  \n  switch (typeof value) {\n    case 'string':\n      return value.length > 5000 ? value.substring(0, 5000) + \"...\" : value;\n    \n    case 'object':\n      if (Array.isArray(value)) {\n        // Pour les tableaux, on stringifie le tableau complet\n        const stringified = JSON.stringify(value);\n        return stringified.length > 5000 ? stringified.substring(0, 5000) + \"...\" : stringified;\n      } else {\n        // Pour les objets, on stringifie l'objet complet\n        const stringified = JSON.stringify(value);\n        return stringified.length > 5000 ? stringified.substring(0, 5000) + \"...\" : stringified;\n      }\n    \n    default:\n      // Pour numbers, booleans, etc. - pas de changement\n      return value;\n  }\n}\n\n// Appliquer la limitation à toutes les propriétés\nconst processedData = {};\nfor (const [key, value] of Object.entries(riskData)) {\n  processedData[key] = truncateTo5000(value);\n}\n\nreturn [{\n  json: {\n    ...processedData,\n    ai_analysis: truncateTo5000(parsed.analysis) || \"Aucune analyse disponible\",\n    ai_recommendations: truncateTo5000(parsed.recommendations) || \"Aucune recommandation\"\n  }\n}];"
+      },
+      "id": "37927fc6-ed03-4620-971c-d3de30bfee90",
+      "name": "Formatage AI1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2316,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.action_required }}",
+              "value2": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a6e96707-4948-40e0-868e-c8cdc80c3e7c",
+      "name": "Filtre Menaces1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2536,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "6461505079",
+        "text": "=🚨 **ALERTE SÉCURITÉ** 🚨\n\n{{ $json.risk_color }} **{{ $json.risk_level }}** - Score: {{ $json.risk_score }}/100\n\n📋 **Type**: {{ $json.type }}\n🎯 **Cible**: `{{ $json.value }}`\n⚠️ **Sévérité**: {{ $json.severity }}\n⏰ **Détecté**: {{ $json.timestamp }}\n\n📊 **Analyse AI**:\n{{ $json.ai_analysis }}\n\n🔍 **Détails Techniques**:\n• OTX Pulses: {{ $json.details.otx_pulses }}\n• VT Malicious: {{ $json.details.vt_malicious }}\n• VT Suspicious: {{ $json.details.vt_suspicious }}\n• Réputation: {{ $json.details.reputation }}\n\n💡 **Recommandations**:\n{{ $json.ai_recommendations }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "a069e9ba-c670-412d-8fe0-310a2baa648f",
+      "name": "Alerte Telegram1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2756,
+        520
+      ],
+      "webhookId": "55c22e69-75e3-4e46-8909-9e374ca67163",
+      "credentials": {
+        "telegramApi": {
+          "id": "J6e9rEEwuorC8d89",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1E0PLF_CtsfEOBrSKeXTGDjcR2_DDU2IDt6BTsngiDJs/edit?gid=1826666471#gid=1826666471",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "n8n-sheet",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "type",
+              "displayName": "type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "value",
+              "displayName": "value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "risk_score",
+              "displayName": "risk_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "risk_level",
+              "displayName": "risk_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "severity",
+              "displayName": "severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "risk_color",
+              "displayName": "risk_color",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "action_required",
+              "displayName": "action_required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "details",
+              "displayName": "details",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "raw_otx",
+              "displayName": "raw_otx",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "raw_vt",
+              "displayName": "raw_vt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ai_analysis",
+              "displayName": "ai_analysis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ai_recommendations",
+              "displayName": "ai_recommendations",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        2756,
+        720
+      ],
+      "id": "a5c3eb40-195b-4537-86ac-768909059939",
+      "name": "Google Sheets1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RREbXuSxObMIQ27z",
+          "name": "Sheets "
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        360,
+        620
+      ],
+      "id": "7e3d7863-6a07-4bb3-b0f5-984a59fe7dfb",
+      "name": "When clicking ‘Execute workflow’"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Configuration Entrée1": {
+      "main": [
+        [
+          {
+            "node": "AutoDetect Type1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AutoDetect Type1": {
+      "main": [
+        [
+          {
+            "node": "Router par Type1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router par Type1": {
+      "main": [
+        [
+          {
+            "node": "Analyse OTX1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Analyse VirusTotal1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyse OTX1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Analyse VirusTotal1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyse OTX1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Analyse VirusTotal1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyse VirusTotal1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyse OTX1": {
+      "main": [
+        [
+          {
+            "node": "Fusion Résultats1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyse VirusTotal1": {
+      "main": [
+        [
+          {
+            "node": "Fusion Résultats1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Fusion Résultats1": {
+      "main": [
+        [
+          {
+            "node": "Calcul Risque1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcul Risque1": {
+      "main": [
+        [
+          {
+            "node": "Enrichissement AI1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrichissement AI1": {
+      "main": [
+        [
+          {
+            "node": "Formatage AI1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatage AI1": {
+      "main": [
+        [
+          {
+            "node": "Filtre Menaces1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtre Menaces1": {
+      "main": [
+        [
+          {
+            "node": "Alerte Telegram1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Configuration Entrée1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "36f0dfc6-35fb-427a-9ba1-90c10717c846",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9a96e9af9005b70b31ef50f6b6975f839fc6e5a69944096e4fc8315a831cb61b"
+  },
+  "id": "NbWpdP8xB23lQkIR",
+  "tags": []
+}
